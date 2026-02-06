@@ -12,3 +12,5 @@ A collection of my own small hobby Arduino projects
 [Servo with temperature](./Servo_with_temperature)
 
 [Servo back and forth (light switch on/off)](./back_n_forth_servo)
+
+[Weather forecast display](./Weather_forecast_display)
