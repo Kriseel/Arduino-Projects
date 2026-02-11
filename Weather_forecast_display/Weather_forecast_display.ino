@@ -1,9 +1,26 @@
+#include "values.h"
+#include <WiFi.h>
+
 void setup() {
-  // put your setup code here, to run once:
+  Serial.begin(115200);
+
+  // Connect to WIFI
+  Serial.print("Connecting to: ");
+  Serial.println(WIFI_SSID);
+
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+  while(WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.println(".");
+  }
+
+  Serial.println("Wifi connected");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
 
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-
+  // LOOP
 }
