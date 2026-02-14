@@ -11,6 +11,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <NetworkClientSecure.h>
+#include <ArduinoJson.h>
 
 // The endpoint url for the API
 const char *endpointURL = "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=" LAT "&lon=" LONG;
@@ -53,7 +54,21 @@ xw/ogM4cKGR0GQjTQuPOAF1/sdwTsOEFy9EgqoZ0njnnkf3/W9b3raYvAwtt41dU
 -----END CERTIFICATE-----
 )string_literal";
 
-void apiRequest() {
+String payload = "";
+
+// Number of timeSeries entries we want to get (typically what we can fit on display)
+const uint8_t timeSeriesLimit = 2;
+
+// Struct for each weatherSlot for time, temp, etc. We can put these structs into an array to access for each time (0 would be the first one when fetching data (NOW))
+struct WeatherSlot {
+  String time;
+  int8_t temp;
+  String symbolCode;
+};
+WeatherSlot forecast[timeSeriesLimit];
+
+// Setting up network client and http request to fetch data from API
+String getData() {
   NetworkClientSecure *client = new NetworkClientSecure;
   if (client) {
     client->setCACert(rootCACertificate);
@@ -80,8 +95,14 @@ void apiRequest() {
           if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
             String payload = https.getString();
             
-            // We successfully got the payload, return it
             Serial.println(payload);
+            
+            // end https and delete client before returning
+            https.end();
+            delete client;
+            
+            // We successfully got the payload, return it
+            return payload;
           }
         } else {
           Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
@@ -99,8 +120,39 @@ void apiRequest() {
   } else {
     Serial.println("Unable to create client");
   }
+
+  return "ERROR";
 }
 
+void parseData(String payload) {
+  JsonDocument doc;
+
+  DeserializationError error = deserializeJson(doc, payload);
+
+  // Check for parsing error
+  if (error) {
+    Serial.print("deserializeJson() failed: ");
+    Serial.println(error.f_str());
+    return;
+  }
+
+  // Fetch the values into structs
+  for (uint8_t i = 0; i < timeSeriesLimit; i++) {
+    forecast[i].time = doc["properties"]["timeseries"][i]["time"].as<String>();
+    forecast[i].temp = doc["properties"]["timeseries"][i]["data"]["instant"]["details"]["air_temperature"];
+    forecast[i].symbolCode = doc["properties"]["timeseries"][i]["data"]["next_1_hours"]["summary"]["symbol_code"].as<String>();
+  }
+
+  // Print to serial so we can check without display
+  for (uint8_t i = 0; i < timeSeriesLimit; i++) {
+    Serial.println();
+    Serial.println(forecast[i].time);
+    Serial.println(forecast[i].temp);
+    Serial.println(forecast[i].symbolCode);
+  }
+}
+
+// General Arduino IDE setup to be run first when the program starts
 void setup() {
   Serial.begin(115200);
 
@@ -122,12 +174,16 @@ void setup() {
 
 }
 
+// Main loop, fetching data, parsing and putting what we care about on display (once every hour +/- 10 min)
 void loop() {
   
   // Get request
-  apiRequest();
+  payload = getData();
 
   // Parse the JSON
+  if (payload != "ERROR") {
+    parseData(payload);
+  }
 
   // Display
   
