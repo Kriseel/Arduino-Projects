@@ -196,10 +196,10 @@ void displayData() {
     display.print(trimDateTime(forecast[i].time));
 
     display.setCursor(x, startY + lineSpacing);
-    display.print(F(forecast[i].temp)); display.write(247); display.print(F("C"));
+    display.print(forecast[i].temp); display.write(247); display.print(F("C"));
 
     display.setCursor(x, startY + (lineSpacing * 2));
-    display.print(forecast[i].symbolCode);
+    display.print("Sunny"); // Placehodler for now
   }
 
   display.display();
