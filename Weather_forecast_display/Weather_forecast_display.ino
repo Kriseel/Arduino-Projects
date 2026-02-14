@@ -7,11 +7,20 @@
   HTTPClient and NetworkClientSecure to connect to the API endppoints (HTTPS)
 */
 
-#include "values.h"
-#include <WiFi.h>
-#include <HTTPClient.h>
-#include <NetworkClientSecure.h>
-#include <ArduinoJson.h>
+
+#include "values.h" // Personal
+#include <WiFi.h> // WiFi setup
+#include <HTTPClient.h> // Http request 
+#include <NetworkClientSecure.h> // Network client
+#include <ArduinoJson.h> // JSON parsing
+#include <Wire.h> // I2C
+#include <Adafruit_GFX.h> // Display GFXs
+#include <Adafruit_SSD1306.h> // Display libraries
+
+#define SCREEN_WIDTH 128 // Display width in pixels
+#define SCREEN_HEIGHT 64 // Display height in pixels
+#define OLED_RESET -1 // -1 sharing arduino reset pin (or specified in board core like ESP32)
+#define SCREEN_ADDRESS 0x3D // check datasheet for display to find the address
 
 // The endpoint url for the API
 const char *endpointURL = "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=" LAT "&lon=" LONG;
@@ -66,6 +75,8 @@ struct WeatherSlot {
   String symbolCode;
 };
 WeatherSlot forecast[timeSeriesLimit];
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 // Setting up network client and http request to fetch data from API
 String getData() {
@@ -124,7 +135,7 @@ String getData() {
   return "ERROR";
 }
 
-void parseData(String payload) {
+uint8_t parseData(String payload) {
   JsonDocument doc;
 
   DeserializationError error = deserializeJson(doc, payload);
@@ -133,7 +144,7 @@ void parseData(String payload) {
   if (error) {
     Serial.print("deserializeJson() failed: ");
     Serial.println(error.f_str());
-    return;
+    return 1;
   }
 
   // Fetch the values into structs
@@ -150,6 +161,48 @@ void parseData(String payload) {
     Serial.println(forecast[i].temp);
     Serial.println(forecast[i].symbolCode);
   }
+
+  return 0;
+}
+
+String trimDateTime(String time) {
+  int hour = time.substring(11, 13).toInt() + 1; // plus one for UTC + 1
+
+  hour = hour % 24;
+
+  if (hour < 10) {
+    return "0" + String(hour) + ":00";
+  } else {
+    return String(hour) + ":00";
+  }
+}
+
+void displayData() {
+  // Make sure display is clear before redrawing
+  display.clearDisplay();
+
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+
+  const int startY = 0;
+  const int columnWidth = 60;
+  const int lineSpacing = 11;
+
+  for (uint8_t i = 0; i < timeSeriesLimit; i++) {
+    int x = i * (columnWidth + 8);
+
+    display.setCursor(x, startY);
+    display.print(trimDateTime(forecast[i].time));
+
+    display.setCursor(x, startY + lineSpacing);
+    display.print(F(forecast[i].temp)); display.write(247); display.print(F("C"));
+
+    display.setCursor(x, startY + (lineSpacing * 2));
+    display.print(forecast[i].symbolCode);
+  }
+
+  display.display();
 }
 
 // General Arduino IDE setup to be run first when the program starts
@@ -172,6 +225,19 @@ void setup() {
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
+  Serial.println("\nSetting up Adafruit display");
+  if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+    Serial.println(F("SSD1306 allocation failed, looping forever, please reset"));
+    for(;;);
+  }
+
+  // Show the initial display buffer contents
+  display.display();
+  delay(2000); // pause for 2 seconds
+
+// Clear it
+  display.clearDisplay();
+
 }
 
 // Main loop, fetching data, parsing and putting what we care about on display (once every hour +/- 10 min)
@@ -182,10 +248,11 @@ void loop() {
 
   // Parse the JSON
   if (payload != "ERROR") {
-    parseData(payload);
+    if (parseData(payload) == 0) {
+      // Display
+      displayData();
+    }
   }
-
-  // Display
   
   // Wait 1 hour before asking again
   delay(60UL * 60UL * 1000UL);
