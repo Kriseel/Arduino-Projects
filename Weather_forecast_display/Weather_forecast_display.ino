@@ -66,7 +66,7 @@ xw/ogM4cKGR0GQjTQuPOAF1/sdwTsOEFy9EgqoZ0njnnkf3/W9b3raYvAwtt41dU
 String payload = "";
 
 // Number of timeSeries entries we want to get (typically what we can fit on display)
-const uint8_t timeSeriesLimit = 2;
+const uint8_t timeSeriesLimit = 4;
 
 // Struct for each weatherSlot for time, temp, etc. We can put these structs into an array to access for each time (0 would be the first one when fetching data (NOW))
 struct WeatherSlot {
@@ -185,21 +185,26 @@ void displayData() {
   display.setTextSize(1);
   display.setCursor(0, 0);
 
-  const int startY = 0;
+  const int rowHeight = 32;
   const int columnWidth = 60;
-  const int lineSpacing = 11;
+  const int lineSpacing = 10;
 
+  // Draw data to on display
   for (uint8_t i = 0; i < timeSeriesLimit; i++) {
-    int x = i * (columnWidth + 8);
+    int col = i % 2;
+    int row = i / 2;
 
-    display.setCursor(x, startY);
+    int x = col * columnWidth + 8;
+    int y = (row == 1) ? (row * rowHeight + 4) : (row * rowHeight);
+
+    display.setCursor(x, y);
     display.print(trimDateTime(forecast[i].time));
 
-    display.setCursor(x, startY + lineSpacing);
+    display.setCursor(x, y + lineSpacing);
     display.print(forecast[i].temp); display.write(247); display.print(F("C"));
 
-    display.setCursor(x, startY + (lineSpacing * 2));
-    display.print("Sunny"); // Placehodler for now
+    display.setCursor(x, y + (lineSpacing * 2));
+    display.print("Sunny"); // TODO: Change placeholder to proper icon or text for symbol summary
   }
 
   display.display();
@@ -231,11 +236,7 @@ void setup() {
     for(;;);
   }
 
-  // Show the initial display buffer contents
-  display.display();
-  delay(2000); // pause for 2 seconds
-
-// Clear it
+  // Clear display
   display.clearDisplay();
 
 }
