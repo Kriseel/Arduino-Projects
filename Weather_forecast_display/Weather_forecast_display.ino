@@ -4,7 +4,7 @@
   Weather forecast display using data from Meteorologisk Institutt.
   Wifi library to connect to wifi.
   Json to parse the data
-  HTTPClient and NetworkClientSecure to connect to the API endppoints (HTTPS)
+  HTTPClient and NetworkClientSecure to connect to the API endpoints (HTTPS)
 */
 
 
@@ -16,6 +16,7 @@
 #include <Wire.h> // I2C
 #include <Adafruit_GFX.h> // Display GFXs
 #include <Adafruit_SSD1306.h> // Display libraries
+#include <Fonts/WeatherIcon.h> // Weather icon font sourced from https://github.com/kaldoran/Adafruit-Weather-Icon and slightly modified
 
 #define SCREEN_WIDTH 128 // Display width in pixels
 #define SCREEN_HEIGHT 64 // Display height in pixels
@@ -83,7 +84,6 @@ String getData() {
   NetworkClientSecure *client = new NetworkClientSecure;
   if (client) {
     client->setCACert(rootCACertificate);
-
     {
       // Extra scoping block for HTTPClient so it is both created after and destroyed before NetworkClientSecure is
       HTTPClient https;
@@ -92,7 +92,6 @@ String getData() {
       if (https.begin(*client, endpointURL)) { // HTTPS
         // Set user agent
         https.setUserAgent(USER_AGENT);
-        
         Serial.println("[HTTPS] GET...");
 
         // Start the connection and get https
@@ -105,7 +104,6 @@ String getData() {
           // Found and made connection -> get the payload body
           if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
             String payload = https.getString();
-            
             Serial.println(payload);
             
             // end https and delete client before returning
@@ -118,15 +116,12 @@ String getData() {
         } else {
           Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
         }
-
         https.end();
       } else {
         Serial.printf("[HTTPS] Unable to connect\n");
       }
-
       // End of extra scoping block
     }
-
     delete client;
   } else {
     Serial.println("Unable to create client");
@@ -177,16 +172,67 @@ String trimDateTime(String time) {
   }
 }
 
-String symbolTotext(String symbolCode) {
-  // Symbol variants
-  // https://github.com/metno/weathericons/tree/main/weather
+String getSymbolFromCode(String symbolCode) {
+  // Converting the symbol code into a symbol using a specific character based on custom font
+  // Hard to follow and read, some values even though ends up in same result on a different line in order to have shorter lines
+  // Sleet is same symbol as for rain. All showers variants is just the same as their main non-showers variant
   
-  // Default if not found
-  return "ERROR"
+  // Symbol overview
+  // https://github.com/metno/weathericons/tree/main/weather
+
+  if(symbolCode == "clearsky_day" || symbolCode == "clearsky_polartwilight") return "B";
+  if(symbolCode == "clearsky_night") return "C";
+
+  if(symbolCode == "cloudy") return "N";
+
+  if(symbolCode == "fair_day" || symbolCode == "fair_polartwilight") return "(";
+  if(symbolCode == "fair_night") return ")";
+
+  if(symbolCode == "fog") return "L";
+
+  if(symbolCode == "partlycloudy_day" || symbolCode == "partlycloudy_polartwilight") return "H";
+  if(symbolCode == "partlycloudy_night") return "I";
+
+  // Heavy variants - rain and sleet together, then thunder versions, then snow
+  if(symbolCode == "heavyrain" || symbolCode == "heavyrainshowers_day" || symbolCode == "heavyrainshowers_polartwilight" || symbolCode == "heavyrainshowers_night") return "X";
+  if(symbolCode == "heavysleet" || symbolCode == "heavysleetshowers_day" || symbolCode == "heavysleetshowers_polartwilight" || symbolCode == "heavysleetshowers_night") return "X";
+
+  if(symbolCode == "heavyrainandthunder" || symbolCode == "heavyrainshowersandthunder_day" || symbolCode == "heavyrainshowersandthunder_polartwilight" || symbolCode == "heavyrainshowersandthunder_night") return "*";
+  if(symbolCode == "heavysleetandthunder" || symbolCode == "heavysleetshowersandthunder_day" || symbolCode == "heavysleetshowersandthunder_polartwilight" || symbolCode == "heavysleetshowersandthunder_night") return "*";
+
+  if(symbolCode == "heavysnow" || symbolCode == "heavysnowshowers_day" || symbolCode == "heavysnowshowers_night" || symbolCode == "heavysnowshowers_polartwilight") return "W";
+
+  if(symbolCode == "heavysnowandthunder" || symbolCode == "heavysnowshowersandthunder_day" || symbolCode == "heavysnowshowersandthunder_night" || symbolCode == "heavysnowshowersandthunder_polartwilight") return "+";
+
+  // Light variants
+  if(symbolCode == "lightrain" || symbolCode == "lightrainshowers_day" || symbolCode == "lightrainshowers_polartwilight" || symbolCode == "lightrainshowers_night") return "Q";
+  if(symbolCode == "lightsleet" || symbolCode == "lightsleetshowers_day" || symbolCode == "lightsleetshowers_polartwilight" || symbolCode == "lightsleetshowers_night") return "Q";
+
+  if(symbolCode == "lightrainandthunder" || symbolCode == "lightrainshowersandthunder_day" || symbolCode == "lightrainshowersandthunder_polartwilight" || symbolCode == "lightrainshowersandthunder_night") return ",";
+  if(symbolCode == "lightsleetandthunder" || symbolCode == "lightsleetshowersandthunder_day" || symbolCode == "lightsleetshowersandthunder_polartwilight" || symbolCode == "lightsleetshowersandthunder_night") return ",";
+
+  if(symbolCode == "lightsnow" || symbolCode == "lightsnowshowers_day" || symbolCode == "lightsnowshowers_night" || symbolCode == "lightsnowshowers_polartwilight") return "U";
+
+  if(symbolCode == "lightsnowandthunder" || symbolCode == "lightsnowshowersandthunder_day" || symbolCode == "lightsnowshowersandthunder_night" || symbolCode == "lightsnowshowersandthunder_polartwilight") return "-";
+
+  // Normal variants
+  if(symbolCode == "rain" || symbolCode == "rainshowers_day" || symbolCode == "rainshowers_polartwilight" || symbolCode == "rainshowers_night") return "R";
+  if(symbolCode == "sleet" || symbolCode == "sleetshowers_day" || symbolCode == "sleetshowers_polartwilight" || symbolCode == "sleetshowers_night") return "R";
+
+  if(symbolCode == "rainandthunder" || symbolCode == "rainshowersandthunder_day" || symbolCode == "rainshowersandthunder_polartwilight" || symbolCode == "rainshowersandthunder_night") return ".";
+  if(symbolCode == "sleetandthunder" || symbolCode == "sleetshowersandthunder_day" || symbolCode == "sleetshowersandthunder_polartwilight" || symbolCode == "sleetshowersandthunder_night") return ".";
+
+  if(symbolCode == "snow" || symbolCode == "snowshowers_day" || symbolCode == "snowshowers_night" || symbolCode == "snowshowers_polartwilight") return "V";
+
+  if(symbolCode == "snowandthunder" || symbolCode == "snowshowersandthunder_day" || symbolCode == "snowshowersandthunder_night" || symbolCode == "snowshowersandthunder_polartwilight") return "/";
+  
+  // Default N (cloudy) if not found
+  return "N";
 }
 
 void displayData() {
-  // Make sure display is clear before redrawing
+  // Make sure display is clear before redrawing and default font
+  display.setFont();
   display.clearDisplay();
 
   display.setTextColor(SSD1306_WHITE);
@@ -199,10 +245,13 @@ void displayData() {
 
   // Draw data to on display
   for (uint8_t i = 0; i < timeSeriesLimit; i++) {
+    // Set default font for the normal text
+    display.setFont();
+
     int col = i % 2;
     int row = i / 2;
 
-    int x = col * columnWidth + 8;
+    int x = col * columnWidth;
     int y = (row == 1) ? (row * rowHeight + 4) : (row * rowHeight);
 
     display.setCursor(x, y);
@@ -211,8 +260,10 @@ void displayData() {
     display.setCursor(x, y + lineSpacing);
     display.print(forecast[i].temp); display.write(247); display.print(F("C"));
 
-    display.setCursor(x, y + (lineSpacing * 2));
-    display.print(symbolToText(forecast[i].symbolCode)); // TODO: Change placeholder to proper icon or text for symbol summary
+    display.setCursor(x + 33, y + (lineSpacing * 2));
+    // Custom weather icon font (https://github.com/kaldoran/Adafruit-Weather-Icon with some modifications)
+    display.setFont(&Weathericon);
+    display.print(getSymbolFromCode(forecast[i].symbolCode));
   }
 
   display.display();
