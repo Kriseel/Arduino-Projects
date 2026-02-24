@@ -177,6 +177,14 @@ String trimDateTime(String time) {
   }
 }
 
+String symbolTotext(String symbolCode) {
+  // Symbol variants
+  // https://github.com/metno/weathericons/tree/main/weather
+  
+  // Default if not found
+  return "ERROR"
+}
+
 void displayData() {
   // Make sure display is clear before redrawing
   display.clearDisplay();
@@ -204,7 +212,7 @@ void displayData() {
     display.print(forecast[i].temp); display.write(247); display.print(F("C"));
 
     display.setCursor(x, y + (lineSpacing * 2));
-    display.print("Sunny"); // TODO: Change placeholder to proper icon or text for symbol summary
+    display.print(symbolToText(forecast[i].symbolCode)); // TODO: Change placeholder to proper icon or text for symbol summary
   }
 
   display.display();
