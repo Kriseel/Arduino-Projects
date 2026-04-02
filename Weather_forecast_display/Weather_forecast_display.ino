@@ -161,7 +161,7 @@ uint8_t parseData(String payload) {
 }
 
 String trimDateTime(String time) {
-  int hour = time.substring(11, 13).toInt() + 1; // plus one for UTC + 1
+  int hour = time.substring(11, 13).toInt() + 2; // plus one for UTC + 2
 
   hour = hour % 24;
 
